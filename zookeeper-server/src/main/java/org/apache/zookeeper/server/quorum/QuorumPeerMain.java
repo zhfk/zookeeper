@@ -117,6 +117,7 @@ public class QuorumPeerMain {
         DatadirCleanupManager purgeMgr = new DatadirCleanupManager(config
                 .getDataDir(), config.getDataLogDir(), config
                 .getSnapRetainCount(), config.getPurgeInterval());
+        // 清理快照文件
         purgeMgr.start();
 
         if (args.length == 1 && config.isDistributed()) {
@@ -157,6 +158,9 @@ public class QuorumPeerMain {
                       true);
           }
 
+          /**
+           * 创建节点对象，并对节点属性赋值
+           */
           quorumPeer = getQuorumPeer();
           quorumPeer.setTxnFactory(new FileTxnSnapLog(
                       config.getDataLogDir(),
@@ -165,6 +169,9 @@ public class QuorumPeerMain {
           quorumPeer.enableLocalSessionsUpgrading(
               config.isLocalSessionsUpgradingEnabled());
           //quorumPeer.setQuorumPeers(config.getAllMembers());
+          /**
+           * 默认选举类型 3
+           */
           quorumPeer.setElectionType(config.getElectionAlg());
           quorumPeer.setMyid(config.getServerId());
           quorumPeer.setTickTime(config.getTickTime());
@@ -178,7 +185,13 @@ public class QuorumPeerMain {
           if (config.getLastSeenQuorumVerifier()!=null) {
               quorumPeer.setLastSeenQuorumVerifier(config.getLastSeenQuorumVerifier(), false);
           }
+          /**
+           * 初始化内存数据库对象，DataTree
+           */
           quorumPeer.initConfigInZKDatabase();
+          /**
+           * 将服务连接对象对象放入本节点
+           */
           quorumPeer.setCnxnFactory(cnxnFactory);
           quorumPeer.setSecureCnxnFactory(secureCnxnFactory);
           quorumPeer.setSslQuorum(config.isSslQuorum());
@@ -201,7 +214,9 @@ public class QuorumPeerMain {
           }
           quorumPeer.setQuorumCnxnThreadsSize(config.quorumCnxnThreadsSize);
           quorumPeer.initialize();
-          
+          /**
+           * 启动服务节点
+           */
           quorumPeer.start();
           quorumPeer.join();
       } catch (InterruptedException e) {
