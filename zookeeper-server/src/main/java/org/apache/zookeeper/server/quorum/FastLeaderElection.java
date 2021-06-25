@@ -896,12 +896,22 @@ public class FastLeaderElection implements Election {
             int notTimeout = finalizeWait;
 
             synchronized(this){
+                /**
+                 * 选举周期加 1
+                 */
                 logicalclock.incrementAndGet();
+                /**
+                 * 初始化选票信息，是自己的 id，zxid
+                 * getInitLastLoggedZxid()，最大 zxid 是从内存树里取到的，只有被commit到内存里的数据才真正有效
+                 */
                 updateProposal(getInitId(), getInitLastLoggedZxid(), getPeerEpoch());
             }
 
             LOG.info("New election. My id =  " + self.getId() +
                     ", proposed zxid=0x" + Long.toHexString(proposedZxid));
+            /**
+             * 给其他所有的参与投票的阶段发送选票，其实是放到发送队列里面
+             */
             sendNotifications();
 
             /*
@@ -941,16 +951,18 @@ public class FastLeaderElection implements Election {
                      * Only proceed if the vote comes from a replica in the current or next
                      * voting view for a replica in the current or next voting view.
                      */
-                    switch (n.state) {
+                    switch (n.state) { //发送选票方，节点的状态
                     case LOOKING:
                         // If notification > current, replace and send messages out
-                        if (n.electionEpoch > logicalclock.get()) {
-                            logicalclock.set(n.electionEpoch);
-                            recvset.clear();
+                        if (n.electionEpoch > logicalclock.get()) { // 远方选举周期比本机大
+                            logicalclock.set(n.electionEpoch); //更新选票周期到最新
+                            recvset.clear(); //清空选票箱历史记录
                             if(totalOrderPredicate(n.leader, n.zxid, n.peerEpoch,
                                     getInitId(), getInitLastLoggedZxid(), getPeerEpoch())) {
+                                // 收到的选票胜出，则更新本机选举信息
                                 updateProposal(n.leader, n.zxid, n.peerEpoch);
                             } else {
+                                // 本机的选票胜出，则更新本机选举信息
                                 updateProposal(getInitId(),
                                         getInitLastLoggedZxid(),
                                         getPeerEpoch());
@@ -977,6 +989,9 @@ public class FastLeaderElection implements Election {
                         }
 
                         // don't care about the version if it's in LOOKING state
+                        /**
+                         * 将接收到的选票，放入选票箱
+                         */
                         recvset.put(n.sid, new Vote(n.leader, n.zxid, n.electionEpoch, n.peerEpoch));
 
                         if (termPredicate(recvset,
@@ -984,6 +999,9 @@ public class FastLeaderElection implements Election {
                                         logicalclock.get(), proposedEpoch))) {
 
                             // Verify if there is any change in the proposed leader
+                            /**
+                             * 取出队列中可能新收到的选票，再行比较
+                             */
                             while((n = recvqueue.poll(finalizeWait,
                                     TimeUnit.MILLISECONDS)) != null){
                                 if(totalOrderPredicate(n.leader, n.zxid, n.peerEpoch,

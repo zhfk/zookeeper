@@ -483,7 +483,13 @@ public class QuorumCnxManager {
             // Otherwise proceed with the connection
         } else {
             LOG.debug("Have larger server identifier, so keeping the connection: (myId:{} --> sid:{})", self.getId(), sid);
+            /**
+             * 从sid发送队列取出消息，发送出去
+             */
             SendWorker sw = new SendWorker(sock, sid);
+            /**
+             * 作用：将接收到的消息放入接收队列
+             */
             RecvWorker rw = new RecvWorker(sock, din, sid, sw);
             sw.setRecv(rw);
 
@@ -627,6 +633,9 @@ public class QuorumCnxManager {
             LOG.warn("We got a connection request from a server with our own ID. "
                     + "This should be either a configuration error, or a bug.");
         } else { // Otherwise start worker threads to receive data.
+            /**
+             * 创建选票发送器，sid
+             */
             SendWorker sw = new SendWorker(sock, sid);
             RecvWorker rw = new RecvWorker(sock, din, sid, sw);
             sw.setRecv(rw);
@@ -655,7 +664,7 @@ public class QuorumCnxManager {
         /*
          * If sending message to myself, then simply enqueue it (loopback).
          */
-        if (this.mySid == sid) {
+        if (this.mySid == sid) { //发送到自己的选票队列
              b.position(0);
              addToRecvQueue(new Message(b.duplicate(), sid));
             /*
@@ -1223,7 +1232,7 @@ public class QuorumCnxManager {
                      * Reads the first int to determine the length of the
                      * message
                      */
-                    int length = din.readInt();
+                    int length = din.readInt(); //消息的长度
                     if (length <= 0 || length > PACKETMAXSIZE) {
                         throw new IOException(
                                 "Received packet with invalid packet: "
